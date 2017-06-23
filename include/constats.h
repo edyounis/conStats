@@ -11,14 +11,40 @@
 
 #include <stdint.h>
 
-/**
- * This function prints statistics of the sample set splits to stdin.
- */
-extern int constats_print_info_split ( uint64_t* sample_set, uint64_t sample_size );
+typedef struct stats_t
+{
+	uint64_t N;			// The size of the sample set
+
+	float mean;			// The mean of the data
+	float stdev;		// The standard deviation
+	float abdev;		// The mean absolute deviation
+	int64_t min;		// The minimum value
+	int64_t max;		// The maximum value
+
+	int64_t tolerance;	// The tolerance level used in classifying outliers
+	uint64_t outliers;	// The number of data points classified as outliers
+
+	float norm_mean;	// The mean of the data without the outliers
+	float norm_stdev;	// The standard deviation without the outliers
+	float norm_abdev;	// The mean absolute deviation without the outliers
+	int64_t norm_min;	// The minimum value without the outliers
+	int64_t norm_max;	// The maximum value without the outliers
+
+} stats_t;
 
 /**
- * This function prints statistics of the sample set to stdin.
+ * This function populates the stat data structure with statistics.
  */
-extern int constats_print_info ( uint64_t* sample_set, uint64_t sample_size );
+extern int constats_calculate_stats ( int64_t* sample_set, uint64_t sample_size, stats_t* stat );
+
+/**
+ * This function prints statistics of the sample set to stdout.
+ */
+extern int constats_print_stats ( int64_t* sample_set, uint64_t sample_size, stats_t* stat );
+ 
+/**
+ * This function calculates and prints statistics of the given sample set.
+ */
+extern int constats_get_and_print_stats ( int64_t* sample_set, uint64_t sample_size );
 
 #endif
