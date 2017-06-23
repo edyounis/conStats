@@ -23,9 +23,9 @@
  * This function returns the mean of the sample set.
  */
 static inline
-float constats_get_mean ( int64_t* sample_set, uint64_t sample_size )
+double constats_get_mean ( int64_t* sample_set, uint64_t sample_size )
 {
-	register float sum;
+	register double sum;
 	register uint64_t i;
 
 	for ( sum = 0, i = 0; i < sample_size; ++i )
@@ -33,7 +33,7 @@ float constats_get_mean ( int64_t* sample_set, uint64_t sample_size )
 		sum += sample_set[i];
 	}
 
-	return sum / (float) sample_size;
+	return sum / (double) sample_size;
 }
 
 /**
@@ -94,16 +94,16 @@ int constats_calculate_stats ( int64_t* sample_set, uint64_t sample_size, stats_
 	stat->norm_max = NINF;
 	stat->outliers = 0;
 
-	register float stdevSum = 0;
-	register float abdevSum = 0;
-	register float normSum = 0;
-	register float normStdevSum = 0;
-	register float normAbdevSum = 0;
+	register double stdevSum = 0;
+	register double abdevSum = 0;
+	register double normSum = 0;
+	register double normStdevSum = 0;
+	register double normAbdevSum = 0;
 	register uint64_t i;
 
 	for ( i = 0; i < sample_size; ++i )
 	{
-		float dev = ABSOLUTE( sample_set[i] - stat->mean );
+		double dev = ABSOLUTE( sample_set[i] - stat->mean );
 		abdevSum += dev;
 		stdevSum += dev*dev;
 
@@ -129,22 +129,22 @@ int constats_calculate_stats ( int64_t* sample_set, uint64_t sample_size, stats_
 		}
 	}
 
-	stat->stdev     = sqrt( stdevSum / (float) sample_size );
-	stat->abdev     = abdevSum / (float) sample_size;
-	stat->norm_mean = normSum / (float) ( sample_size - stat->outliers );
+	stat->stdev     = sqrt( stdevSum / (double) sample_size );
+	stat->abdev     = abdevSum / (double) sample_size;
+	stat->norm_mean = normSum / (double) ( sample_size - stat->outliers );
 
 	for ( i = 0; i < sample_size; ++i )
 	{
 		if ( sample_set[i] <= upper_thresh && sample_set[i] >= lower_thresh )
 		{
-			float dev = ABSOLUTE( sample_set[i] - stat->norm_mean );
+			double dev = ABSOLUTE( sample_set[i] - stat->norm_mean );
 			normAbdevSum += dev;
 			normStdevSum += dev*dev;
 		}
 	}
 
-	stat->norm_stdev = sqrt( normStdevSum / (float) ( sample_size - stat->outliers ) );
-	stat->norm_abdev = normAbdevSum / (float) ( sample_size - stat->outliers );
+	stat->norm_stdev = sqrt( normStdevSum / (double) ( sample_size - stat->outliers ) );
+	stat->norm_abdev = normAbdevSum / (double) ( sample_size - stat->outliers );
 
 	return 0;
 }
@@ -153,7 +153,7 @@ int constats_calculate_stats ( int64_t* sample_set, uint64_t sample_size, stats_
  * This function returns the value with the specified zScore.
  */
 static inline
-uint64_t constats_zrange_value ( stats_t* stat, float zScore )
+uint64_t constats_zrange_value ( stats_t* stat, double zScore )
 {
 	return stat->norm_mean + zScore*stat->norm_stdev;
 }
@@ -162,12 +162,12 @@ uint64_t constats_zrange_value ( stats_t* stat, float zScore )
  * This function returns the zScore with the specified value.
  */
 static inline
-float constats_zscore_value ( stats_t* stat, int64_t value )
+double constats_zscore_value ( stats_t* stat, int64_t value )
 {
 	if ( stat->norm_stdev == 0 )
 		return 0;
 
-	return (float)(value - stat->norm_mean) / stat->norm_stdev;
+	return (double)(value - stat->norm_mean) / stat->norm_stdev;
 }
 
 /**
@@ -200,7 +200,7 @@ int constats_truncate ( int64_t value, char* buf, uint64_t width )
 	if ( value < 0 )
 	{
 		buf[0] = '-';
-		return constats_truncate ( -value, ++buf, --width );
+		return constats_truncate ( value <= NINF ? INF : -value, ++buf, --width );
 	}
 
 	uint64_t buf_index   = 0;
@@ -269,7 +269,7 @@ int constats_truncate ( int64_t value, char* buf, uint64_t width )
  * This function prints one bar in a histogram corresponding to the range given by zScoreMin and zScoreMax.
  */
 static inline
-int constats_print_zrange_bar ( int64_t* sample_set, uint64_t sample_size, stats_t* stat, float zScoreMin, float zScoreMax )
+int constats_print_zrange_bar ( int64_t* sample_set, uint64_t sample_size, stats_t* stat, double zScoreMin, double zScoreMax )
 {
 	char bar[33];
 	char count_str[13];
@@ -308,18 +308,22 @@ int constats_print_zrange_bar ( int64_t* sample_set, uint64_t sample_size, stats
 static inline
 int constats_print_zhistogram ( int64_t* sample_set, uint64_t sample_size, stats_t* stat )
 {
-	// print zranges from max(-3, min) to min(3, max)
-	float i = constats_zscore_value( stat, stat->min );
-	i = i < -3 ? -3 : i; // i = max(-3, min)
+	double zNINF = constats_zscore_value( stat, NINF );
+	double zINF  = constats_zscore_value( stat, INF  );
 
-	float maxZ = constats_zscore_value( stat, stat->max );
+	double i = constats_zscore_value( stat, stat->min );
+	i = i < -3 ? -3 : i; // i = max(-3, min)
+	i = i < zNINF ? zNINF : i; // i = max(i, z(NINF))
+
+	double maxZ = constats_zscore_value( stat, stat->max );
 	maxZ = maxZ > 3 ? 3 : maxZ; // maxZ = min(3, max)
+	maxZ = maxZ > zINF ? zINF : maxZ; // maxZ = min(maxZ, z(INF))
 
 	if ( i >= maxZ )
 		constats_print_zrange_bar( sample_set, sample_size, stat, -0.5, 0.5 );
 
 	for ( ; i < maxZ; i += 0.5 )
-		constats_print_zrange_bar( sample_set, sample_size, stat, i, i + 0.5 );
+		constats_print_zrange_bar( sample_set, sample_size, stat, i, ( i+0.5 <= maxZ ? i+0.5 : maxZ ) );
 	
 	//constats_print_zrange_bar( sample_set, sample_size, stat, constats_zscore_value( stat, stat->min ), i );
 	
@@ -339,27 +343,56 @@ int constats_print_stats ( int64_t* sample_set, uint64_t sample_size, stats_t* s
 {
 	printf ( "-------------------------------------------------------------------------------\n" );
 	printf ( "Sample Size            : %lu\n", stat->N );
-	printf ( "Average value          : %f\n", stat->mean );
+	printf ( "Average value          : %.0f\n", stat->mean );
 	printf ( "Minimum value          : %ld\n", stat->min );
 	printf ( "Maximum value          : %ld\n", stat->max );
-	printf ( "Standard Deviation     : %f\n", stat->stdev );
-	printf ( "Mean Absolute Deviation: %f\n", stat->abdev );
+	printf ( "Standard Deviation     : %.0f\n", stat->stdev );
+	printf ( "Mean Absolute Deviation: %.0f\n", stat->abdev );
 	printf ( "\n" );
+
 	printf ( "Outlier Count   : %lu\n", stat->outliers );
 	if ( stat->outliers > 0 )
 	{
 		printf ( "Without Outliers:\n");
-		printf ( "\tAverage value          : %f\n", stat->norm_mean );
+		printf ( "\tAverage value          : %.0f\n", stat->norm_mean );
 		printf ( "\tMinimum value          : %ld\n", stat->norm_min );
 		printf ( "\tMaximum value          : %ld\n", stat->norm_max );
-		printf ( "\tStandard Deviation     : %f\n", stat->norm_stdev );
-		printf ( "\tMean Absolute Deviation: %f\n", stat->norm_abdev );
+		printf ( "\tStandard Deviation     : %.0f\n", stat->norm_stdev );
+		printf ( "\tMean Absolute Deviation: %.0f\n", stat->norm_abdev );
 	}
 	printf ( "\n" );
+
 	constats_print_zhistogram( sample_set, sample_size, stat );
 	printf ( "\n" );
-	printf ( "Summary:\nnorm mean:\t%f;\tnorm abs dev:\t%f\nmin:\t\t%lu;\t\tmax:\t\t%lu\n", 
-				stat->norm_mean, stat->norm_abdev, stat->min, stat->max );
+
+	printf ( "Summary:\n");
+
+	char min[15];
+	char max[15];
+	char mean[15];
+
+	memset( min, 0, 15 );
+	memset( max, 0, 15 );
+	memset( mean, 0, 15 );
+
+	constats_truncate( stat->min, min, 14 );
+	constats_truncate( stat->max, max, 14 );
+	constats_truncate( stat->mean, mean, 14 );
+
+	printf ( "min : %s || max : %s || mean : %s\n", min, max, mean );
+
+	if ( stat->outliers > 0 )
+	{
+		memset( min, 0, 15 );
+		memset( max, 0, 15 );
+		memset( mean, 0, 15 );
+
+		constats_truncate( stat->norm_min, min, 14 );
+		constats_truncate( stat->norm_max, max, 14 );
+		constats_truncate( stat->norm_mean, mean, 14 );
+
+		printf ( "Nmin: %s || Nmax: %s || Nmean: %s\n", min, max, mean );
+	}
 	printf ( "-------------------------------------------------------------------------------\n" );
 
 	return 0;
