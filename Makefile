@@ -1,3 +1,15 @@
-all:
-	gcc -Wall -Werror -fPIC -Iinclude -c src/constats.c -o build/constats.o  -lm
-	gcc -shared -o libstats.so build/constats.o
+CC:=gcc
+CFLAGS:=-Wall -Werror -fPIC -lm
+INCLUDE_DIRS:=-Iinclude
+BUILD_DIR:=build
+TARGET:=libstats
+DEP:=src/constats.c
+
+compile: $(DEP)
+	mkdir -p build
+	$(CC) $(INCLUDE_DIRS) -c $(DEP) -o $(BUILD_DIR)/$(TARGET).o $(CFLAGS)
+	$(CC) -shared -o $(TARGET).so $(BUILD_DIR)/$(TARGET).o
+
+clean:
+	rm -rf $(BUILD_DIR)
+	rm *.so
