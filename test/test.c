@@ -5,8 +5,11 @@
 #include <stdlib.h>
 #include "../include/constats.h"
 
-# define TRANSACTIONS 10
+# define TRANSACTIONS 10000
 
+
+// rand_uint64() from chux at stackoverflow.com at:
+// https://stackoverflow.com/questions/33010010/how-to-generate-random-64-bit-unsigned-integer-in-c
 #if RAND_MAX/256 >= 0xFFFFFFFFFFFFFF
   #define LOOP_COUNT 1
 #elif RAND_MAX/256 >= 0xFFFFFF
@@ -31,14 +34,12 @@ int main ( void )
 {
 	srand( time( NULL ) );
 
-	//int64_t random_int[10] = { -6, 5, 5, 5, 5, 5, 5, 5, 5, 5 };
 	int64_t* random_int = (int64_t*) malloc ( TRANSACTIONS * sizeof(int64_t) );
 	uint64_t  trans_id;
 
 	for ( trans_id = 0; trans_id < TRANSACTIONS; ++trans_id )
 	{
 		random_int[trans_id] = (int64_t)rand_uint64();
-		//printf("%ld\n", random_int[trans_id]);
 	}
 
 	constats_get_and_print_stats( random_int, TRANSACTIONS );
