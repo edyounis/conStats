@@ -1,23 +1,53 @@
 /**
- * @File     : constats.c
+ * @File     : constats.h
  * @Author   : Abdullah Younis
  *
  * This library contains statistical functions to help in
  * analyzing and representing data.
  */
 
-#include "constats.h"
-#include <math.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#ifndef CONSTATS_LIB_LOCK
+#define CONSTATS_LIB_LOCK
 
+/**
+ * Main Interface Function
+ *
+ * constats_get_and_print_stats takes a sample set, calculates the statistics 
+ * listed in struct stats_t, and displays the in a nicely formated way alongside
+ * a scaled histogram of the data.
+ */
+int constats_get_and_print_stats ( int64_t* sample_set, uint64_t sample_size );
+
+
+#define ABSOLUTE(x) ((x) > 0 ? (x) : -(x))
 #define INF  9223372036854775807
 #define NINF -9223372036854775807
 
-#define ABSOLUTE(x) ((x) >= 0 ? (x) : -(x))
 #define DTOC(x)     ((char)('0' + (x)))
+
+#include <math.h>
+#include <stdint.h>
+
+typedef struct stats_t
+{
+	uint64_t N;			// The size of the sample set
+
+	double mean;		// The mean of the data
+	double stdev;		// The standard deviation
+	double abdev;		// The mean absolute deviation
+	int64_t min;		// The minimum value
+	int64_t max;		// The maximum value
+
+	int64_t tolerance;	// The tolerance level used in classifying outliers
+	uint64_t outliers;	// The number of data points classified as outliers
+
+	double norm_mean;	// The mean of the data without the outliers
+	double norm_stdev;	// The standard deviation without the outliers
+	double norm_abdev;	// The mean absolute deviation without the outliers
+	int64_t norm_min;	// The minimum value without the outliers
+	int64_t norm_max;	// The maximum value without the outliers
+
+} stats_t;
 
 /**
  * This function returns the mean of the sample set.
@@ -153,7 +183,7 @@ int constats_calculate_stats ( int64_t* sample_set, uint64_t sample_size, stats_
  * This function returns the value with the specified zScore.
  */
 static inline
-uint64_t constats_zrange_value ( stats_t* stat, double zScore )
+int64_t constats_zrange_value ( stats_t* stat, double zScore )
 {
 	return stat->norm_mean + zScore*stat->norm_stdev;
 }
@@ -324,14 +354,6 @@ int constats_print_zhistogram ( int64_t* sample_set, uint64_t sample_size, stats
 
 	for ( ; i < maxZ; i += 0.5 )
 		constats_print_zrange_bar( sample_set, sample_size, stat, i, ( i+0.5 <= maxZ ? i+0.5 : maxZ ) );
-	
-	//constats_print_zrange_bar( sample_set, sample_size, stat, constats_zscore_value( stat, stat->min ), i );
-	
-	// float maxZScore = constats_zscore_value( stat, stat->max );
-	// for ( ; i < maxZScore && i < 3; i += 0.5 )
-	// {
-	// 	constats_print_zrange_bar( sample_set, sample_size, stat, i, ( i+0.5 <= maxZScore ? i+0.5 : maxZScore ) );
-	// }
 
 	return 0;
 }
@@ -413,3 +435,5 @@ int constats_get_and_print_stats ( int64_t* sample_set, uint64_t sample_size )
 
 	return constats_print_stats ( sample_set, sample_size, &stats );
 }
+
+#endif
